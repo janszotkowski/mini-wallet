@@ -28,6 +28,14 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountI
 	}
 	defer tx.Rollback(ctx)
 
+	_, err = tx.Exec(ctx,
+		`SELECT id FROM accounts WHERE id IN ($1, $2) ORDER BY id FOR UPDATE`,
+		fromAccountID, toAccountID,
+	)
+	if err != nil {
+		return fmt.Errorf("lock accounts: %w", err)
+	}
+
 	var fromBalance int64 // Vytvoří proměnnou s výchozí hodnotou 0. V Go má každý typ svou výchozí hodnotu.
 	err = tx.QueryRow(ctx, `SELECT balance FROM accounts WHERE id = $1`, fromAccountID).Scan(&fromBalance) // Scan uloží výsledek do proměnné.
 	if err != nil {
