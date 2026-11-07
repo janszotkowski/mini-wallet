@@ -23,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mux := http.NewServeMux()
+	mux := http.NewServeMux() // router
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		// Ping je funkce pro kontrolu, zda je databaze dostupna. Pokud ne, vrati error.

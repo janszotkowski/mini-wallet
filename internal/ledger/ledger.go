@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -12,8 +13,13 @@ var (
 	ErrInvalidAmount = errors.New("amount must be positive") // Velké písmeno na začátku znamená, že je název vidět i mimo balíček, jako export.
 	ErrSameAccount = errors.New("cannot transfer to the same account")
 	ErrInsufficientFunds = errors.New("insufficient funds")
+	ErrAccountNotFound = errors.New("account not found")
 )
 
+// int64 = celé číslo.
+
+// ctx = signál pro zrušení práce, obdoba AbortSignal.
+// pool = odkaz na sadu připojení k databázi. Hvězdička znamená ukazatel: všichni pracují se stejným poolem, nikdo nemá kopii.
 func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountID string, amount int64) error {
 	if amount <= 0 {
 		return ErrInvalidAmount
@@ -22,12 +28,14 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountI
 		return ErrSameAccount
 	}
 
-	tx, err := pool.Begin(ctx) // Začne transakci. Všechno v ní se buď provede celé, nebo vůbec.
+	tx, err := pool.Begin(ctx) // Začne transakci -> tx. Všechno v ní se buď provede celé, nebo vůbec.
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx) // Podobá se finally v TS, jen ho píšeš hned vedle věci, kterou má uklidit.
 
+
+	// Exec vraci CommandTag (shrnutí, třeba UPDATE 1), muze se logovat, a druhy parametr je err, ktery se vraci
 	_, err = tx.Exec(ctx,
 		`SELECT id FROM accounts WHERE id IN ($1, $2) ORDER BY id FOR UPDATE`,
 		fromAccountID, toAccountID,
@@ -38,6 +46,9 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountI
 
 	var fromBalance int64 // Vytvoří proměnnou s výchozí hodnotou 0. V Go má každý typ svou výchozí hodnotu.
 	err = tx.QueryRow(ctx, `SELECT balance FROM accounts WHERE id = $1`, fromAccountID).Scan(&fromBalance) // Scan uloží výsledek do proměnné.
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrAccountNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("get from account: %w", err)
 	}
@@ -49,6 +60,9 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountI
 
 	var toBalance int64
 	err = tx.QueryRow(ctx, `SELECT balance FROM accounts WHERE id = $1`, toAccountID).Scan(&toBalance)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrAccountNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("get to account: %w", err)
 	}
