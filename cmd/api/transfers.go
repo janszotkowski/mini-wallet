@@ -29,6 +29,7 @@ func handleCreateTransfer(pool *pgxpool.Pool) http.HandlerFunc {
 		var request createTransferRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil { // Přečte JSON z těla do request
 			writeError(w, http.StatusBadRequest, "invalid JSON body")
+			return
 		}
 
 		// Ověří, že ID je platné UUID
