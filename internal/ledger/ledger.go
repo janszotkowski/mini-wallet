@@ -26,7 +26,7 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, fromAccountID, toAccountI
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(ctx) // Podobá se finally v TS, jen ho píšeš hned vedle věci, kterou má uklidit.
 
 	_, err = tx.Exec(ctx,
 		`SELECT id FROM accounts WHERE id IN ($1, $2) ORDER BY id FOR UPDATE`,
