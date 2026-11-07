@@ -36,6 +36,7 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
+	mux.HandleFunc("POST /transfers", handleCreateTransfer(pool))
 	log.Println("Starting server on port 8080")
 	err = http.ListenAndServe(":8080", mux) // Je tu =, ne :=, protože err už existuje. := vytváří novou proměnnou, = jen mění existující.
 	log.Fatal(err)
