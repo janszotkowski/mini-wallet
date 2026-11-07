@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -61,7 +62,7 @@ func TestTransfer(t *testing.T) {
 	from := createAccount(t, pool, 1000)
 	to := createAccount(t, pool, 0)
 
-	if err := Transfer(ctx, pool, from, to, 300); err != nil {
+	if _, err := Transfer(ctx, pool, uuid.NewString(), from, to, 300); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +92,7 @@ func TestTransferInsufficientFunds(t *testing.T) {
 	from := createAccount(t, pool, 100)
 	to := createAccount(t, pool, 0)
 
-	err := Transfer(ctx, pool, from, to, 101)
+	_, err := Transfer(ctx, pool, uuid.NewString(), from, to, 101)
 	if !errors.Is(err, ErrInsufficientFunds) {
 		t.Fatalf("chyba = %v, čekám ErrInsufficientFunds", err)
 	}

@@ -6,13 +6,15 @@ import (
 	"math/rand/v2"
 	"sync"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestTransferConcurrent(t *testing.T) {
 	const (
-		accountCount = 5
+		accountCount   = 5
 		initialBalance = int64(1000)
-		transferCount = 100
+		transferCount  = 100
 		transferAmount = int64(10)
 	)
 
@@ -27,10 +29,10 @@ func TestTransferConcurrent(t *testing.T) {
 	var wg sync.WaitGroup // Počítadlo spuštěných úloh, na které lze počkat. Podobá se Promise.all
 	for range transferCount {
 		wg.Go(func() { // Spustí funkci v nové goroutine, tedy lehkém vlákně běžícím souběžně s ostatními. goroutines můžou běžet opravdu současně na více jádrech procesoru.
-			fromIndex := rand.IntN(accountCount) // Náhodný účet odesílatele, číslo od 0 do 4.
+			fromIndex := rand.IntN(accountCount)                                  // Náhodný účet odesílatele, číslo od 0 do 4.
 			toIndex := (fromIndex + 1 + rand.IntN(accountCount-1)) % accountCount // Náhodný příjemce, který nikdy není stejný jako odesílatel.
 
-			err := Transfer(ctx, pool, accounts[fromIndex], accounts[toIndex], transferAmount)
+			_, err := Transfer(ctx, pool, uuid.NewString(), accounts[fromIndex], accounts[toIndex], transferAmount)
 			if err != nil && !errors.Is(err, ErrInsufficientFunds) {
 				t.Errorf("převod selhal: %v", err)
 			}
