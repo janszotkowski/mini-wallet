@@ -31,7 +31,7 @@ func main() {
 			// Pošle odpověď se statusem 503 a tímto textem.
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return // pokud se stane chyba, funkce se ukonci a odpoved se neposle
-		}	
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
