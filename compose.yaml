@@ -17,6 +17,18 @@ services:
 
   kafka:
     image: apache/kafka:4.1.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: HOST://:9092,DOCKER://:19092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: HOST:PLAINTEXT,DOCKER:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     ports:
       - "9092:9092"
 
@@ -38,6 +50,29 @@ services:
       DATABASE_URL: postgres://wallet:wallet@postgres:5432/wallet?sslmode=disable
     ports:
       - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  publisher:
+    build: .
+    command: ["publisher"]
+    environment:
+      DATABASE_URL: postgres://wallet:wallet@postgres:5432/wallet?sslmode=disable
+      KAFKA_BROKER: kafka:19092
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
+
+  grpc:
+    build: .
+    command: ["grpc"]
+    environment:
+      DATABASE_URL: postgres://wallet:wallet@postgres:5432/wallet?sslmode=disable
+    ports:
+      - "9090:9090"
     depends_on:
       migrate:
         condition: service_completed_successfully

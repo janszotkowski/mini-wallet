@@ -22,7 +22,15 @@ func main() {
 	}
 	defer pool.Close()
 
-	client, err := kgo.NewClient(kgo.SeedBrokers("localhost:9092")) // Připojení ke Kafce.
+	kafkaBroker := os.Getenv("KAFKA_BROKER")
+	if kafkaBroker == "" {
+		kafkaBroker = "localhost:9092"
+	}
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(kafkaBroker),
+		kgo.AllowAutoTopicCreation(),
+	) // Připojení ke Kafce.
 	if err != nil {
 		log.Fatal(err)
 	}
