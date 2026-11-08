@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package wallet.v1;
+
+option go_package = "github.com/janszotkowski/mini-wallet/gen/wallet/v1;walletv1";
+
+service WalletService {
+  rpc CreateTransfer(CreateTransferRequest) returns (CreateTransferResponse);
+}
+
+message CreateTransferRequest {
+  string idempotency_key = 1;
+  string from_account_id = 2;
+  string to_account_id = 3;
+  int64 amount = 4;
+}
+
+message CreateTransferResponse {
+  string transfer_id = 1;
+  bool replayed = 2;
+}
