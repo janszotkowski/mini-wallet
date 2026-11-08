@@ -66,9 +66,9 @@ func handleCreateTransfer(pool *pgxpool.Pool) http.HandlerFunc {
 		result, err := ledger.Transfer(r.Context(), pool, idempotencyKey, fromAccountID.String(), toAccountID.String(), request.Amount)
 		switch { // Podle chyby vybere HTTP status, break se nepíše
 		case err == nil && result.Replayed:
-			writeJSON(w, http.StatusOK, createTransferResponse{TransferID: result.TransferID}) // // 200 OK: opakovaný požadavek, původní transferId
+			writeJSON(w, http.StatusOK, createTransferResponse{TransferID: result.TransferID}) // 200 OK: opakovaný požadavek, původní transferId
 		case err == nil:
-			writeJSON(w, http.StatusCreated, createTransferResponse{TransferID: result.TransferID}) // // 201 Created: nový převod, nové transferId
+			writeJSON(w, http.StatusCreated, createTransferResponse{TransferID: result.TransferID}) // 201 Created: nový převod, nové transferId
 		case errors.Is(err, ledger.ErrInvalidAmount), errors.Is(err, ledger.ErrSameAccount):
 			writeError(w, http.StatusBadRequest, err.Error()) // 400 Bad Request
 		case errors.Is(err, ledger.ErrAccountNotFound):
