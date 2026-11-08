@@ -101,3 +101,33 @@ func TestTransferInsufficientFunds(t *testing.T) {
 		t.Errorf("zůstatek from = %d, čekám 100", got)
 	}
 }
+
+func TestTransferWritesOutboxEvent(t *testing.T) {
+	ctx := context.Background()
+	pool := newTestPool(t)
+	from := createAccount(t, pool, 1000)
+	to := createAccount(t, pool, 0)
+	idempotencyKey := uuid.NewString()
+
+	result, err := Transfer(ctx, pool, idempotencyKey, from, to, 300)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Transfer(ctx, pool, idempotencyKey, from, to, 300)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var events int64
+	err = pool.QueryRow(ctx,
+		`SELECT count(*) FROM outbox_events WHERE payload->>'transferId' = $1`,
+		result.TransferID,
+	).Scan(&events)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if events != 1 {
+		t.Errorf("eventů = %d, čekám 1", events)
+	}
+}

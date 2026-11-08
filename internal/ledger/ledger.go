@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,6 +22,13 @@ var (
 type TransferResult struct {
 	TransferID string
 	Replayed   bool
+}
+
+type transferCompletedEvent struct {
+	TransferID    string `json:"transferId"`
+	FromAccountID string `json:"fromAccountId"`
+	ToAccountID   string `json:"toAccountId"`
+	Amount        int64  `json:"amount"`
 }
 
 // int64 = celé číslo.
@@ -105,6 +113,24 @@ func Transfer(ctx context.Context, pool *pgxpool.Pool, idempotencyKey, fromAccou
 	)
 	if err != nil {
 		return TransferResult{}, fmt.Errorf("insert ledger entries: %w", err)
+	}
+
+	payload, err := json.Marshal(transferCompletedEvent{ // Převede struct na JSON, jako JSON.stringify(...). Vrátí []byte (pole bajtů, tedy text JSONu) a chybu.
+		TransferID:    transferID,
+		FromAccountID: fromAccountID,
+		ToAccountID:   toAccountID,
+		Amount:        amount,
+	})
+	if err != nil {
+		return TransferResult{}, fmt.Errorf("marshal transfer completed event: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, // Zapíše event přes tx, ne přes pool. Tím je ve stejné transakci jako převod. To je celé jádro outboxu.
+		`INSERT INTO outbox_events (event_type, payload) VALUES ('transfer.completed', $1)`,
+		payload,
+	)
+	if err != nil {
+		return TransferResult{}, fmt.Errorf("insert outbox event: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
