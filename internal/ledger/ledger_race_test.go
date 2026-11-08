@@ -64,3 +64,47 @@ func TestTransferConcurrent(t *testing.T) {
 		t.Errorf("součet zůstatků = %d, čekám %d", total, want)
 	}
 }
+
+func TestTransferSameKeyConcurrent(t *testing.T) {
+	const requestCount = 20
+
+	ctx := context.Background()
+	pool := newTestPool(t)
+	from := createAccount(t, pool, 1000)
+	to := createAccount(t, pool, 0)
+	idempotencyKey := uuid.NewString()
+
+	results := make([]TransferResult, requestCount) // = new Array(20)
+	errs := make([]error, requestCount)
+
+	var wg sync.WaitGroup // Počítadlo spuštěných goroutines
+	for i := range requestCount {
+		wg.Go(func() { // Spustí převod v nové goroutine.
+			results[i], errs[i] = Transfer(ctx, pool, idempotencyKey, from, to, 100)
+		})
+	}
+	wg.Wait() // Počká na všech 20, jako await Promise.all(...).
+
+	created := 0
+	for i := range requestCount {
+		if errs[i] != nil {
+			t.Fatalf("požadavek %d selhal: %v", i, errs[i])
+		}
+		if results[i].TransferID != results[0].TransferID {
+			t.Errorf("požadavek %d vrátil jiné transferId", i)
+		}
+		if !results[i].Replayed {
+			created++
+		}
+	}
+	if created != 1 {
+		t.Errorf("nových převodů = %d, čekám 1", created)
+	}
+
+	if got := getBalance(t, pool, from); got != 900 {
+		t.Errorf("zůstatek from = %d, čekám 900", got)
+	}
+	if got := getBalance(t, pool, to); got != 100 {
+		t.Errorf("zůstatek to = %d, čekám 100", got)
+	}
+}
